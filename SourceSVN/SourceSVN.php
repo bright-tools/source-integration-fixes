@@ -218,18 +218,30 @@ class SourceSVNPlugin extends MantisSourcePlugin {
 		$t_db_revision = db_result( db_query_bound( $t_max_query, array( $p_repo->id ), 1 ) );
 
 		$t_url = $p_repo->url;
+
+		if( is_blank( $t_url )) {
+			echo '<pre>SVN URL in repo configuration is blank</pre>';
+			return array();
+		}
+
 		$t_rev = ( false === $t_db_revision ? 0 : $t_db_revision + 1 );
 
 
 		# finding max revision
-		$t_svninfo_xml = shell_exec( "$svn info $t_url --xml" );
+		exec( "$svn info $t_url --xml 2>&1 2>&1", $t_svninfo_xml_a, $t_svn_return );
+		$t_svninfo_xml = implode( $t_svninfo_xml_a );
+		if( 0 != $t_svn_return ) {
+			echo '<pre>Failed to successfully execute SVN command.  Got:'.htmlentities($t_svninfo_xml).'</pre>';
+			return array();
+		}
+
 		try {
 			# create parser
 			$t_svninfo_parsed_xml = new SimpleXMLElement($t_svninfo_xml);
 		}
 		catch( Exception $e ) {
 			# parsing error - no success here
-			echo '<pre>svn info returned invalid xml code</pre>';
+			echo '<pre>svn info returned invalid xml code:'.htmlentities($t_svninfo_xml).'</pre>';
 			return array();
 		}
 		$t_max_rev = (integer) $t_svninfo_parsed_xml->entry->commit['revision'];
